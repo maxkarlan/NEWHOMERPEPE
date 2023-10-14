@@ -22,6 +22,7 @@ function preload() {
 function windowResized() {
     // Resize the canvas to the new window width and height
     resizeCanvas(windowWidth, windowHeight);
+    imgCenter.set(width / 2, height / 2);  // Reset the center as the window has been resized
 
     // Recompute any parameters that depend on the window size
     circleDiameter = Math.min(windowWidth, windowHeight);
