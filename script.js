@@ -7,7 +7,7 @@ let circleDiameter;
 let streamGroups = [];
 
 function preload() {
-    let circleDiameter = Math.min(windowWidth, windowHeight);
+    circleDiameter = Math.min(windowWidth, windowHeight);
     let desiredImageHeight = circleDiameter * 2;
 
     for (let i = 0; i < 5; i++) {
@@ -18,6 +18,27 @@ function preload() {
         });
     }
 }
+
+function windowResized() {
+    // Resize the canvas to the new window width and height
+    resizeCanvas(windowWidth, windowHeight);
+
+    // Recompute any parameters that depend on the window size
+    circleDiameter = Math.min(windowWidth, windowHeight);
+    let desiredImageHeight = circleDiameter * 2;
+    
+    for (let i = 0; i < images.length; i++) {
+        let img = images[i];
+        if (img) {
+            let scaleFactor = desiredImageHeight / img.height;
+            img.resize(img.width * scaleFactor, img.height * scaleFactor);
+        }
+    }
+    
+    // Update center coordinates
+    imgCenter.set(width / 2, height / 2);
+}
+
 function setup() {
     createCanvas(windowWidth, windowHeight);
     imgCenter = createVector(width / 2, height / 2);  // Compute center once
@@ -30,7 +51,7 @@ function setup() {
         [145, 56, 49],
         [53, 57, 53]
     ];
-    const percentages = [0.6, 0.15, 0.15, 0.05, 0.05];
+    const percentages = [0.6, 0.2, 0.1, 0.05, 0.05];
     streamGroups = [];
 
     for (let j = 0; j < 5; j++) {
@@ -74,7 +95,7 @@ for (let s of streams) {
 
 function drawTransparentCircle() {
 // Transparent circle style
-fill(255); // White color with 60% transparency
+fill(255, 0); // White color with 60% transparency
 noStroke();
 
 // Drawing the circle at the center of the canvas
@@ -163,7 +184,7 @@ update() {
 let lastPoint = this.points[this.points.length - 1];
 let newPoint;
 
-let speed = this.attractMode ? 4 : 4; // Double the speed when attractMode is on
+let speed = this.attractMode ? 8 : 8; // Double the speed when attractMode is on
 
 if (this.attractMode) {
 if (this.isOutsideAllImages(lastPoint) || this.insideImage || this.isOverAssignedImage(lastPoint)) {
@@ -176,7 +197,7 @@ if (this.isOverAnyImage(lastPoint)) {
 }
 }
 
-let angleVariation = map(noise(this.noiseOffset), 0, 1, -PI / 4, PI / 4);
+let angleVariation = map(noise(this.noiseOffset), 0, 1, -PI / 2, PI / 2);
 this.currentAngle += angleVariation;
 
 newPoint = p5.Vector.fromAngle(this.currentAngle).mult(speed).add(lastPoint);  // Using the speed variable here
