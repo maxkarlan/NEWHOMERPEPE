@@ -103,6 +103,10 @@ noStroke();
 ellipse(width / 2, height / 2, circleDiameter);
 }
 
+function isInsideCircle(point) {
+    return dist(point.x, point.y, imgCenter.x, imgCenter.y) <= circleDiameter / 2;
+}
+
 function mousePressed() {
 for (let streams of streamGroups) {
 for (let s of streams) {
@@ -166,7 +170,7 @@ class Stream {
         let imgY = point.y - (height / 2 - img.height / 2);
         if (imgX >= 0 && imgX < img.width && imgY >= 0 && imgY < img.height) {
             let pixelColor = img.get(imgX, imgY);
-            return alpha(pixelColor) > transparencyThreshold;
+            return alpha(pixelColor) > transparencyThreshold && isInsideCircle(point);
         }
         return false;
     }
