@@ -1,6 +1,6 @@
 let images = [null, null, null, null, null, null];
 const transparencyThreshold = 128;
-const numOfStreams = 2500;
+const numOfStreams = 3000;
 let imgCenter; 
 let pointImageOverlapCache = {};  
 let circleDiameter;
@@ -8,6 +8,9 @@ let streamGroups = [];
 let desiredStreamCounts = [];
 let totalStreamsToGenerate = 0;
 const REF_AREA = 1920 * 1080;  // Assuming 1920x1080 as the reference resolution where numOfStreams was 900.
+const BASE_SPEED = .01;  // the basic speed when there's just one stream
+const LOG_SCALE_FACTOR = .95;  // scaling factor for logarithmic relationship
+//const SPEED_INCREMENT = 0.01;  // the amount of speed to be added for each additional stream
 
 
 function preload() {
@@ -38,7 +41,7 @@ function generateStreams() {
     // Adjust numOfStreams based on the ratio
     let adjustedNumOfStreams = Math.round(numOfStreams * areaRatio);
 
-    const percentages = [0.575, 0.175, 0.08, .07, 0.05, 0.05];
+    const percentages = [0.5, 0.175, 0.105, .095, 0.05, 0.075];
     desiredStreamCounts = [];
 
     for (let j = 0; j < 6; j++) {
@@ -267,11 +270,21 @@ this.currentAngle = -this.currentAngle;  // Reflect vertically
 }
 }
 
+get totalStreamsCount() {
+    let totalStreams = 0;
+    for (let streams of streamGroups) {
+        totalStreams += streams.length;
+    }
+    return totalStreams;
+}
+
 update() {
 let lastPoint = this.points[this.points.length - 1];
 let newPoint;
 
-let speed = this.attractMode ? 12 : 12; // Double the speed when attractMode is on
+
+        // Calculate the speed for attractMode based on total streams count using logarithmic relationship
+        let speed = this.attractMode ? BASE_SPEED + LOG_SCALE_FACTOR * Math.log(this.totalStreamsCount + 1) : 12;
 
 if (this.attractMode) {
 if (this.isOutsideAllImages(lastPoint) || this.insideImage || this.isOverAssignedImage(lastPoint)) {
