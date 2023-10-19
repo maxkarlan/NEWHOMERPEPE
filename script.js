@@ -1,22 +1,66 @@
-let images = [null, null, null, null, null];
+let images = [null, null, null, null, null, null];
 const transparencyThreshold = 128;
-const numOfStreams = 900;
+const numOfStreams = 2500;
 let imgCenter; 
 let pointImageOverlapCache = {};  
 let circleDiameter;
 let streamGroups = [];
+let desiredStreamCounts = [];
+let totalStreamsToGenerate = 0;
+const REF_AREA = 1920 * 1080;  // Assuming 1920x1080 as the reference resolution where numOfStreams was 900.
+
 
 function preload() {
     circleDiameter = Math.min(windowWidth, windowHeight);
     let desiredImageHeight = circleDiameter * 2;
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 6; i++) {
         loadImage(`images/image${i + 1}.png`, img => {
             let scaleFactor = desiredImageHeight / img.height;
             img.resize(img.width * scaleFactor, img.height * scaleFactor);
             images[i] = img;
         });
     }
+}
+
+function getCurrentAttractMode() {
+    // If no streams exist, default to true
+    if (streamGroups.length === 0 || streamGroups[0].length === 0) {
+        return true;
+    }
+    return streamGroups[0][0].attractMode;
+}
+
+function generateStreams() {
+    // Compute the ratio of the current window area to the reference area
+    let areaRatio = (windowWidth * windowHeight) / REF_AREA;
+    
+    // Adjust numOfStreams based on the ratio
+    let adjustedNumOfStreams = Math.round(numOfStreams * areaRatio);
+
+    const percentages = [0.575, 0.175, 0.08, .07, 0.05, 0.05];
+    desiredStreamCounts = [];
+
+    for (let j = 0; j < 6; j++) {
+        let desiredCountForImage = Math.round(adjustedNumOfStreams * percentages[j]);
+        desiredStreamCounts.push(desiredCountForImage);
+    }
+    
+    totalStreamsToGenerate = adjustedNumOfStreams;
+}
+
+
+function setup() {
+
+    for (let i = 0; i < 6; i++) {
+        streamGroups.push([]);
+    }
+
+    createCanvas(windowWidth, windowHeight);
+    imgCenter = createVector(width / 2, height / 2);
+    background(135, 206, 235);
+
+    generateStreams();  // Generate streams based on window size
 }
 
 function windowResized() {
@@ -38,31 +82,8 @@ function windowResized() {
     
     // Update center coordinates
     imgCenter.set(width / 2, height / 2);
-}
-
-function setup() {
-    createCanvas(windowWidth, windowHeight);
-    imgCenter = createVector(width / 2, height / 2);  // Compute center once
-    background(135, 206, 235);
-
-    const colors = [
-        [0, 96, 0],
-        [96, 216, 0],
-        [255, 253, 208],
-        [145, 56, 49],
-        [53, 57, 53]
-    ];
-    const percentages = [0.6, 0.2, 0.1, 0.05, 0.05];
-    streamGroups = [];
-
-    for (let j = 0; j < 5; j++) {
-        let streams = [];
-        let streamCountForImage = Math.round(numOfStreams * percentages[j]);
-        for (let i = 0; i < streamCountForImage; i++) {
-            streams.push(new Stream(colors[j], j));
-        }
-        streamGroups.push(streams);
-    }
+    
+    generateStreams();  // Regenerate streams based on new window size
 }
 
 function isOverAnyImageCached(point) {
@@ -80,18 +101,62 @@ return result;
 }
 
 function draw() {
+    background(135, 206, 235);
+    pointImageOverlapCache = {};  // Clear the cache for each frame
+    drawTransparentCircle();
 
+    adjustStreams();  // Adjust the number of streams
 
-background(135, 206, 235);
-pointImageOverlapCache = {};  // Clear the cache for each frame
-drawTransparentCircle();	
+    for (let streams of streamGroups) {
+        for (let s of streams) {
+            s.update();
+            s.display();
+        }
+    }
+    
+    displayStreamCount();
+}
 
+// New function to adjust the number of streams
+function adjustStreams() {
+    const colors = [
+        [0, 96, 0],
+        [96, 216, 0],
+        [255, 253, 208],
+        [255, 253, 208],
+        [145, 56, 49],
+        [53, 57, 53]
+    ];
+
+    for (let j = 0; j < 6; j++) {
+        while (streamGroups[j].length < desiredStreamCounts[j]) {
+            // Sample a point from an existing stream if available
+            let samplePoint = streamGroups[j].length > 0 ? random(random(streamGroups[j]).points) : null;
+
+            // Add a stream with the sampled point
+            streamGroups[j].push(new Stream(colors[j], j, samplePoint));
+        }
+
+        while (streamGroups[j].length > desiredStreamCounts[j]) {
+            // Remove a stream
+            streamGroups[j].pop();
+        }
+    }
+}
+
+// New function to compute and display the stream count
+function displayStreamCount() {
+let totalStreams = 0;
 for (let streams of streamGroups) {
-for (let s of streams) {
-    s.update();
-    s.display();
+    totalStreams += streams.length;
 }
-}
+
+push(); // Save current drawing settings
+fill(0);  // Black text color
+textSize(16);  // Set text size
+textAlign(RIGHT, TOP);  // Align text to top right
+text(`Streams: ${totalStreams}`, width - 10, 10);  // Display count with a 10px margin from the edges
+pop(); // Restore original drawing settings
 }
 
 function drawTransparentCircle() {
@@ -118,17 +183,17 @@ for (let s of streams) {
 
 
 class Stream {
-    constructor(color, assignedImageIdx) {
+    constructor(color, assignedImageIdx, startPoint = null) {
         this.color = color;
         this.points = [];
         this.noiseOffset = random(1000);
         this.currentAngle = random(TWO_PI);
-        this.attractMode = false;
+        this.attractMode = getCurrentAttractMode();
         this.assignedImageIdx = assignedImageIdx;
-        this.insideImage = false;
-        this.initStream();
-          this.insideImage = false;
+        this.initStream(startPoint);
+        this.insideImage = this.isOverAssignedImage(this.points[0]);
     }
+    
 
     changeMode() {
         this.attractMode = !this.attractMode;
@@ -138,17 +203,21 @@ class Stream {
                 return isOverAnyImageCached(point);  // Use the cached function instead
                 }
 
-    initStream() {
-        let startX = random(width);
-        let startY = random(height);
-
-        while (this.isOverAnyImage(createVector(startX, startY))) {
-            startX = random(width);
-            startY = random(height);
-        }
-
-        this.points.push(createVector(startX, startY));
-    }
+                initStream(startPoint = null) {
+                    if (startPoint) {
+                        this.points.push(startPoint);
+                    } else {
+                        let startX = random(width);
+                        let startY = random(height);
+            
+                        while (this.isOverAnyImage(createVector(startX, startY))) {
+                            startX = random(width);
+                            startY = random(height);
+                        }
+            
+                        this.points.push(createVector(startX, startY));
+                    }
+                }
 
     isOutsideAllImages(point) {
         return !this.isOverAnyImage(point);
@@ -189,7 +258,7 @@ update() {
 let lastPoint = this.points[this.points.length - 1];
 let newPoint;
 
-let speed = this.attractMode ? 8 : 8; // Double the speed when attractMode is on
+let speed = this.attractMode ? 12 : 12; // Double the speed when attractMode is on
 
 if (this.attractMode) {
 if (this.isOutsideAllImages(lastPoint) || this.insideImage || this.isOverAssignedImage(lastPoint)) {
@@ -202,7 +271,7 @@ if (this.isOverAnyImage(lastPoint)) {
 }
 }
 
-let angleVariation = map(noise(this.noiseOffset), 0, 1, -PI / 2, PI / 2);
+let angleVariation = map(noise(this.noiseOffset), 0, 1, -PI/2, PI/2);
 this.currentAngle += angleVariation;
 
 newPoint = p5.Vector.fromAngle(this.currentAngle).mult(speed).add(lastPoint);  // Using the speed variable here
@@ -256,7 +325,7 @@ this.insideImage = this.isOverAssignedImage(lastPoint);
     display() {
         noFill();
         stroke(this.color);
-        strokeWeight(.5);
+        strokeWeight(.2);
         beginShape();
         for (let pt of this.points) {
             vertex(pt.x, pt.y)
