@@ -138,9 +138,17 @@ function adjustStreams() {
         }
 
         while (streamGroups[j].length > desiredStreamCounts[j]) {
-            // Remove a stream
-            streamGroups[j].pop();
+            // Start fading the last stream
+            streamGroups[j][streamGroups[j].length - 1].fade();
+            
+            // Remove the stream if it's fully faded
+            if(streamGroups[j][streamGroups[j].length - 1].alpha <= 0) {
+                streamGroups[j].pop();
+            } else {
+                break; // Only fade one stream at a time for smoother effect
+            }
         }
+        
     }
 }
 
@@ -192,11 +200,16 @@ class Stream {
         this.assignedImageIdx = assignedImageIdx;
         this.initStream(startPoint);
         this.insideImage = this.isOverAssignedImage(this.points[0]);
+        this.alpha = 255;
     }
     
 
     changeMode() {
         this.attractMode = !this.attractMode;
+    }
+
+    fade() {
+        this.alpha -= 200;  // Decrement by 5 for a moderate fading speed. Adjust as needed.
     }
   
       isOverAnyImage(point) {
@@ -271,7 +284,7 @@ if (this.isOverAnyImage(lastPoint)) {
 }
 }
 
-let angleVariation = map(noise(this.noiseOffset), 0, 1, -PI/2, PI/2);
+let angleVariation = map(noise(this.noiseOffset), 0, 1, -PI, PI);
 this.currentAngle += angleVariation;
 
 newPoint = p5.Vector.fromAngle(this.currentAngle).mult(speed).add(lastPoint);  // Using the speed variable here
@@ -285,7 +298,7 @@ newPoint = p5.Vector.fromAngle(this.currentAngle).mult(speed).add(lastPoint); //
 this.stayWithinBounds(newPoint);  // Check and adjust for bounds
 
 this.points.push(newPoint);
-this.noiseOffset += 0.1;
+this.noiseOffset += 0.005;
 
 if (this.points.length > 100) {
 this.points.shift();
@@ -324,7 +337,7 @@ this.insideImage = this.isOverAssignedImage(lastPoint);
 
     display() {
         noFill();
-        stroke(this.color);
+        stroke(this.color[0], this.color[1], this.color[2], this.alpha);
         strokeWeight(.2);
         beginShape();
         for (let pt of this.points) {
